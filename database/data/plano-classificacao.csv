@@ -1,0 +1,21 @@
+code,name,parent_code
+010,Organização e funcionamento,
+010.1,Normas e regulamentos,010
+010.2,Planejamento institucional,010
+010.2.1,Planos e programas,010.2
+010.2.2,Relatórios de gestão,010.2
+020,Gestão de pessoas,
+020.1,Admissão e posse,020
+020.2,Folha de pagamento,020
+020.3,Férias e licenças,020
+030,Gestão de materiais e patrimônio,
+030.1,Licitações,030
+030.1.1,Editais e propostas,030.1
+030.1.2,Contratos,030.1
+030.2,Inventário patrimonial,030
+040,Gestão orçamentária e financeira,
+040.1,Empenhos e pagamentos,040
+040.2,Prestação de contas,040
+050,Assuntos jurídicos,
+050.1,Pareceres,050
+050.2,Processos judiciais,050
