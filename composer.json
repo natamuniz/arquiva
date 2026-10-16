@@ -1,0 +1,82 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "arquiva/arquiva",
+    "type": "project",
+    "description": "API open-source de gestão documental em Laravel: plano de classificação, temporalidade versionada, sigilo, auditoria e fixidez.",
+    "keywords": [
+        "laravel",
+        "gestao-documental",
+        "arquivistica",
+        "api"
+    ],
+    "license": "MIT",
+    "require": {
+        "php": "^8.3",
+        "laravel/framework": "^13.17",
+        "laravel/sanctum": "^4.0",
+        "laravel/tinker": "^3.0",
+        "smalot/pdfparser": "^2.13"
+    },
+    "require-dev": {
+        "fakerphp/faker": "^1.23",
+        "knuckleswtf/scribe": "^5.11",
+        "larastan/larastan": "^3.13",
+        "laravel/pail": "^1.2.5",
+        "laravel/pao": "^1.0.6",
+        "laravel/pint": "^1.27",
+        "mockery/mockery": "^1.6",
+        "nunomaduro/collision": "^8.6",
+        "pestphp/pest": "^4.7",
+        "pestphp/pest-plugin-laravel": "^4.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/",
+            "Database\\Factories\\": "database/factories/",
+            "Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": [
+            "@php vendor/bin/pest"
+        ],
+        "post-autoload-dump": [
+            "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+            "@php artisan package:discover --ansi"
+        ],
+        "post-update-cmd": [
+            "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
+        ],
+        "pre-package-uninstall": [
+            "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
+        ],
+        "lint": [
+            "@php vendor/bin/pint --test",
+            "@php vendor/bin/phpstan analyse --memory-limit=1G"
+        ],
+        "docs": [
+            "@php artisan scribe:generate",
+            "@php -r \"copy('storage/app/private/scribe/openapi.yaml', 'docs/openapi.yaml');\""
+        ]
+    },
+    "extra": {
+        "laravel": {
+            "dont-discover": []
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "php-http/discovery": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

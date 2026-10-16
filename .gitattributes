@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.sh text eol=lf
+*.pdf binary
+*.png binary
+
+/.github export-ignore
+CHANGELOG.md export-ignore
