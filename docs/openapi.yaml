@@ -1,0 +1,1430 @@
+openapi: 3.0.3
+info:
+  title: 'Arquiva API'
+  description: 'API de gestão documental: plano de classificação, temporalidade versionada, sigilo, auditoria e integridade de arquivos.'
+  version: 1.0.0
+servers:
+  -
+    url: 'http://localhost:8080'
+tags:
+  -
+    name: Autenticação
+    description: ''
+  -
+    name: 'Plano de classificação'
+    description: ''
+  -
+    name: 'Tabela de temporalidade'
+    description: ''
+  -
+    name: Documentos
+    description: "\nDocumentos que o usuário não pode ver respondem 404 em qualquer rota (não revelamos que existem)."
+  -
+    name: Arquivos
+    description: ''
+  -
+    name: Auditoria
+    description: ''
+components:
+  securitySchemes:
+    default:
+      type: http
+      scheme: bearer
+      description: 'Obtenha o token em <code>POST /api/v1/auth/login</code>.'
+security:
+  -
+    default: []
+paths:
+  /api/v1/auth/login:
+    post:
+      summary: Login
+      operationId: login
+      description: "Troca e-mail e senha por um token de acesso (Bearer) válido por 24 horas.\nApós 5 erros em um minuto para o mesmo e-mail e IP, responde 429."
+      parameters: []
+      responses:
+        200:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  token: 6|XljRYhAhBcfFEEZwTmzsOTJgZEGfqZ8H7JslhIJU4c240cdd
+                  token_type: Bearer
+                  expires_at: '2026-10-17T22:59:11+00:00'
+                  user:
+                    id: 3
+                    name: 'Olívia Operadora'
+                    email: operador.adm@arquiva.test
+                    role: operador
+                    clearance: restrito
+                    unit:
+                      id: 2
+                      code: ADM
+                      name: 'Diretoria Administrativa'
+                properties:
+                  token:
+                    type: string
+                    example: 6|XljRYhAhBcfFEEZwTmzsOTJgZEGfqZ8H7JslhIJU4c240cdd
+                  token_type:
+                    type: string
+                    example: Bearer
+                  expires_at:
+                    type: string
+                    example: '2026-10-17T22:59:11+00:00'
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 3
+                      name:
+                        type: string
+                        example: 'Olívia Operadora'
+                      email:
+                        type: string
+                        example: operador.adm@arquiva.test
+                      role:
+                        type: string
+                        example: operador
+                      clearance:
+                        type: string
+                        example: restrito
+                      unit:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 2
+                          code:
+                            type: string
+                            example: ADM
+                          name:
+                            type: string
+                            example: 'Diretoria Administrativa'
+      tags:
+        - Autenticação
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  description: 'E-mail do usuário.'
+                  example: operador.adm@arquiva.test
+                password:
+                  type: string
+                  description: Senha.
+                  example: password
+              required:
+                - email
+                - password
+      security: []
+  /api/v1/auth/logout:
+    post:
+      summary: Logout
+      operationId: logout
+      description: 'Revoga o token usado na requisição.'
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - Autenticação
+  /api/v1/auth/me:
+    get:
+      summary: 'Usuário autenticado'
+      operationId: usurioAutenticado
+      description: ''
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - Autenticação
+  /api/v1/classifications/import:
+    post:
+      summary: 'Importar plano por CSV'
+      operationId: importarPlanoPorCSV
+      description: "Colunas code,name,parent_code. Tudo ou nada: com qualquer erro, nada é gravado e a resposta lista os erros por linha\n(o cabeçalho é a linha 1). Aceita separador \",\" ou \";\" e UTF-8 com BOM."
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - 'Plano de classificação'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 'Arquivo CSV.'
+              required:
+                - file
+  '/api/v1/classifications/{classification_id}/tree':
+    get:
+      summary: 'Subárvore de uma classe'
+      operationId: subrvoreDeUmaClasse
+      description: 'A classe com todas as descendentes aninhadas (consulta recursiva no PostgreSQL).'
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - 'Plano de classificação'
+    parameters:
+      -
+        in: path
+        name: classification_id
+        description: 'The ID of the classification.'
+        example: 1
+        required: true
+        schema:
+          type: integer
+  '/api/v1/classifications/{classification_id}/deactivate':
+    post:
+      summary: 'Desativar classe'
+      operationId: desativarClasse
+      description: 'Classe inativa não recebe novos documentos. Bloqueado (409) se houver filhas ativas.'
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - 'Plano de classificação'
+    parameters:
+      -
+        in: path
+        name: classification_id
+        description: 'The ID of the classification.'
+        example: 1
+        required: true
+        schema:
+          type: integer
+  '/api/v1/classifications/{classification_id}/activate':
+    post:
+      summary: 'Reativar classe'
+      operationId: reativarClasse
+      description: ''
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - 'Plano de classificação'
+    parameters:
+      -
+        in: path
+        name: classification_id
+        description: 'The ID of the classification.'
+        example: 1
+        required: true
+        schema:
+          type: integer
+  /api/v1/classifications:
+    get:
+      summary: 'Plano completo em árvore'
+      operationId: planoCompletoEmrvore
+      description: 'Devolve todas as classes aninhadas, ordenadas por código.'
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - 'Plano de classificação'
+    post:
+      summary: 'Criar classe'
+      operationId: criarClasse
+      description: 'Raiz: 3 dígitos (ex.: 010). Filha: código do pai + "." + 1 a 3 dígitos (ex.: 010.1). Perfis: admin e gestor.'
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - 'Plano de classificação'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                  description: 'Código hierárquico.'
+                  example: '010.1'
+                name:
+                  type: string
+                  description: 'Nome da classe.'
+                  example: 'Normas e regulamentos'
+                parent_id:
+                  type: integer
+                  description: 'Classe pai (vazio para raiz).'
+                  example: 1
+                  nullable: true
+              required:
+                - code
+                - name
+  '/api/v1/classifications/{id}':
+    get:
+      summary: 'Detalhar classe'
+      operationId: detalharClasse
+      description: ''
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - 'Plano de classificação'
+    put:
+      summary: 'Renomear classe'
+      operationId: renomearClasse
+      description: 'Só o nome é editável; tentar mudar código ou pai responde 409.'
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - 'Plano de classificação'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: 'O campo value não pode ter mais de 255 caracteres.'
+                  example: b
+                code:
+                  type: string
+                  description: ''
+                  example: null
+                  nullable: true
+                parent_id:
+                  type: string
+                  description: ''
+                  example: null
+                  nullable: true
+    delete:
+      summary: 'Excluir classe'
+      operationId: excluirClasse
+      description: 'Só classes sem filhas, documentos ou regras. Caso contrário, 409 sugerindo desativar.'
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - 'Plano de classificação'
+    parameters:
+      -
+        in: path
+        name: id
+        description: 'The ID of the classification.'
+        example: 1
+        required: true
+        schema:
+          type: integer
+  '/api/v1/classifications/{classification_id}/retention-rules':
+    get:
+      summary: 'Histórico de regras da classe'
+      operationId: histricoDeRegrasDaClasse
+      description: "Sem parâmetros, lista todas as versões. Com `at`, devolve só a versão vigente naquele instante\n(404 se não havia regra)."
+      parameters:
+        -
+          in: query
+          name: at
+          description: 'Data (AAAA-MM-DD, 00:00 em America/Sao_Paulo) ou data-hora ISO 8601.'
+          example: '2025-01-10'
+          required: false
+          schema:
+            type: string
+            description: 'Data (AAAA-MM-DD, 00:00 em America/Sao_Paulo) ou data-hora ISO 8601.'
+            example: '2025-01-10'
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - 'Tabela de temporalidade'
+    post:
+      summary: 'Criar primeira regra da classe'
+      operationId: criarPrimeiraRegraDaClasse
+      description: 'Cria a versão 1. Se a classe já tem regra vigente, responde 409: use a criação de nova versão.'
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - 'Tabela de temporalidade'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                current_years:
+                  type: integer
+                  description: 'O campo value deve ser no mínimo 0. O campo value não pode ser maior que 200.'
+                  example: 1
+                intermediate_years:
+                  type: integer
+                  description: 'O campo value deve ser no mínimo 0. O campo value não pode ser maior que 200.'
+                  example: 22
+                final_destination:
+                  type: string
+                  description: ''
+                  example: guarda_permanente
+                  enum:
+                    - eliminacao
+                    - guarda_permanente
+                notes:
+                  type: string
+                  description: 'O campo value não pode ter mais de 2000 caracteres.'
+                  example: g
+                  nullable: true
+              required:
+                - current_years
+                - intermediate_years
+                - final_destination
+    parameters:
+      -
+        in: path
+        name: classification_id
+        description: 'The ID of the classification.'
+        example: 1
+        required: true
+        schema:
+          type: integer
+  '/api/v1/retention-rules/{retentionRule_id}':
+    get:
+      summary: 'Detalhar versão'
+      operationId: detalharVerso
+      description: ''
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - 'Tabela de temporalidade'
+    put:
+      summary: 'Alterar regra (nova versão)'
+      operationId: alterarRegranovaVerso
+      description: 'Encerra a versão vigente e cria a próxima. Versão encerrada responde 409.'
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - 'Tabela de temporalidade'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                current_years:
+                  type: integer
+                  description: 'O campo value deve ser no mínimo 0. O campo value não pode ser maior que 200.'
+                  example: 1
+                intermediate_years:
+                  type: integer
+                  description: 'O campo value deve ser no mínimo 0. O campo value não pode ser maior que 200.'
+                  example: 22
+                final_destination:
+                  type: string
+                  description: ''
+                  example: guarda_permanente
+                  enum:
+                    - eliminacao
+                    - guarda_permanente
+                notes:
+                  type: string
+                  description: 'O campo value não pode ter mais de 2000 caracteres.'
+                  example: g
+                  nullable: true
+              required:
+                - current_years
+                - intermediate_years
+                - final_destination
+    parameters:
+      -
+        in: path
+        name: retentionRule_id
+        description: 'The ID of the retentionRule.'
+        example: 1
+        required: true
+        schema:
+          type: integer
+  '/api/v1/documents/{document_id}/capture':
+    post:
+      summary: 'Capturar documento'
+      operationId: capturarDocumento
+      description: "Exige título, data de produção, classe ativa com regra vigente e todos os arquivos processados.\nLista todas as pendências de uma vez (422). Guarda a versão vigente da regra de temporalidade."
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - Documentos
+    parameters:
+      -
+        in: path
+        name: document_id
+        description: 'The ID of the document.'
+        example: 01a146ef-004b-7183-9853-2eb39bbf9c17
+        required: true
+        schema:
+          type: string
+  '/api/v1/documents/{document_id}/history':
+    get:
+      summary: 'Histórico do documento'
+      operationId: histricoDoDocumento
+      description: 'Eventos de auditoria do documento e dos seus arquivos, em ordem cronológica.'
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - Documentos
+    parameters:
+      -
+        in: path
+        name: document_id
+        description: 'The ID of the document.'
+        example: 01a146ef-004b-7183-9853-2eb39bbf9c17
+        required: true
+        schema:
+          type: string
+  /api/v1/documents:
+    get:
+      summary: 'Buscar documentos'
+      operationId: buscarDocumentos
+      description: 'Lista os documentos visíveis ao usuário, 20 por página.'
+      parameters:
+        -
+          in: query
+          name: q
+          description: 'Texto em título, assunto ou interessado (ignora maiúsculas e acentos).'
+          example: licitacao
+          required: false
+          schema:
+            type: string
+            description: 'Texto em título, assunto ou interessado (ignora maiúsculas e acentos).'
+            example: licitacao
+        -
+          in: query
+          name: classification_id
+          description: 'Classe, incluindo as descendentes.'
+          example: 1
+          required: false
+          schema:
+            type: integer
+            description: 'Classe, incluindo as descendentes.'
+            example: 1
+        -
+          in: query
+          name: unit_id
+          description: 'Unidade dona.'
+          example: 2
+          required: false
+          schema:
+            type: integer
+            description: 'Unidade dona.'
+            example: 2
+        -
+          in: query
+          name: secrecy
+          description: 'publico, restrito ou sigiloso.'
+          example: publico
+          required: false
+          schema:
+            type: string
+            description: 'publico, restrito ou sigiloso.'
+            example: publico
+        -
+          in: query
+          name: status
+          description: 'rascunho ou capturado.'
+          example: capturado
+          required: false
+          schema:
+            type: string
+            description: 'rascunho ou capturado.'
+            example: capturado
+        -
+          in: query
+          name: produced_from
+          description: 'Data de produção inicial (AAAA-MM-DD).'
+          example: '2024-01-01'
+          required: false
+          schema:
+            type: string
+            description: 'Data de produção inicial (AAAA-MM-DD).'
+            example: '2024-01-01'
+        -
+          in: query
+          name: produced_to
+          description: 'Data de produção final (AAAA-MM-DD).'
+          example: '2024-12-31'
+          required: false
+          schema:
+            type: string
+            description: 'Data de produção final (AAAA-MM-DD).'
+            example: '2024-12-31'
+        -
+          in: query
+          name: sort
+          description: 'title, produced_at, captured_at ou created_at; prefixo "-" para decrescente.'
+          example: '-produced_at'
+          required: false
+          schema:
+            type: string
+            description: 'title, produced_at, captured_at ou created_at; prefixo "-" para decrescente.'
+            example: '-produced_at'
+        -
+          in: query
+          name: per_page
+          description: 'Itens por página (até 100).'
+          example: 20
+          required: false
+          schema:
+            type: integer
+            description: 'Itens por página (até 100).'
+            example: 20
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - Documentos
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                q:
+                  type: string
+                  description: 'O campo value não pode ter mais de 200 caracteres.'
+                  example: b
+                  nullable: true
+                classification_id:
+                  type: integer
+                  description: ''
+                  example: 16
+                  nullable: true
+                unit_id:
+                  type: integer
+                  description: ''
+                  example: 16
+                  nullable: true
+                secrecy:
+                  type: string
+                  description: ''
+                  example: restrito
+                  enum:
+                    - publico
+                    - restrito
+                    - sigiloso
+                  nullable: true
+                status:
+                  type: string
+                  description: ''
+                  example: rascunho
+                  enum:
+                    - rascunho
+                    - capturado
+                  nullable: true
+                produced_from:
+                  type: string
+                  description: 'Must be a valid date in the format <code>Y-m-d</code>.'
+                  example: '2026-10-16'
+                  nullable: true
+                produced_to:
+                  type: string
+                  description: 'Must be a valid date in the format <code>Y-m-d</code>.'
+                  example: '2026-10-16'
+                  nullable: true
+                sort:
+                  type: string
+                  description: ''
+                  example: '-captured_at'
+                  enum:
+                    - title
+                    - '-title'
+                    - produced_at
+                    - '-produced_at'
+                    - captured_at
+                    - '-captured_at'
+                    - created_at
+                    - '-created_at'
+                  nullable: true
+                per_page:
+                  type: integer
+                  description: 'O campo value deve ser no mínimo 1. O campo value não pode ser maior que 100.'
+                  example: 22
+                  nullable: true
+    post:
+      summary: 'Criar rascunho'
+      operationId: criarRascunho
+      description: 'A unidade é a do usuário (o admin informa `unit_id`). Sigilo padrão: restrito.'
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - Documentos
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: Título.
+                  example: 'Contrato de prestação de serviços de limpeza'
+                  nullable: true
+                subject:
+                  type: string
+                  description: Assunto.
+                  example: 'Contratação de empresa de limpeza para a sede'
+                  nullable: true
+                interested_party:
+                  type: string
+                  description: Interessado.
+                  example: 'Limpa Tudo Serviços Ltda.'
+                  nullable: true
+                produced_at:
+                  type: string
+                  description: 'Data de produção (AAAA-MM-DD, não futura).'
+                  example: '2024-03-15'
+                  nullable: true
+                classification_id:
+                  type: integer
+                  description: 'Classe ativa.'
+                  example: 5
+                  nullable: true
+                secrecy:
+                  type: string
+                  description: 'publico, restrito ou sigiloso.'
+                  example: restrito
+                  nullable: true
+                unit_id:
+                  type: integer
+                  description: 'Só para admin.'
+                  example: 1
+  '/api/v1/documents/{id}':
+    get:
+      summary: 'Detalhar documento'
+      operationId: detalharDocumento
+      description: ''
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - Documentos
+    put:
+      summary: 'Editar documento'
+      operationId: editarDocumento
+      description: 'Depois da captura, classe e unidade não mudam (409) e só gestor da unidade ou admin altera o sigilo.'
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - Documentos
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: 'O campo value não pode ter mais de 255 caracteres.'
+                  example: b
+                  nullable: true
+                subject:
+                  type: string
+                  description: 'O campo value não pode ter mais de 5000 caracteres.'
+                  example: 'n'
+                  nullable: true
+                interested_party:
+                  type: string
+                  description: 'O campo value não pode ter mais de 255 caracteres.'
+                  example: g
+                  nullable: true
+                produced_at:
+                  type: string
+                  description: 'Must be a valid date in the format <code>Y-m-d</code>. O campo value deve ser uma data anterior ou igual a <code>today</code>.'
+                  example: '2022-11-10'
+                  nullable: true
+                classification_id:
+                  type: integer
+                  description: ''
+                  example: 16
+                  nullable: true
+                secrecy:
+                  type: string
+                  description: ''
+                  example: restrito
+                  enum:
+                    - publico
+                    - restrito
+                    - sigiloso
+                unit_id:
+                  type: string
+                  description: ''
+                  example: null
+    delete:
+      summary: 'Excluir rascunho'
+      operationId: excluirRascunho
+      description: 'Documento capturado responde 409. Os arquivos físicos são apagados depois do commit.'
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - Documentos
+    parameters:
+      -
+        in: path
+        name: id
+        description: 'The ID of the document.'
+        example: 01a146ef-004b-7183-9853-2eb39bbf9c17
+        required: true
+        schema:
+          type: string
+  '/api/v1/documents/{document_id}/files':
+    post:
+      summary: 'Enviar arquivo'
+      operationId: enviarArquivo
+      description: 'PDF, PNG, JPEG ou TIFF até 50 MB, só em rascunhos. O arquivo fica "pendente" até o processamento em fila.'
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - Arquivos
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Arquivo.
+              required:
+                - file
+    parameters:
+      -
+        in: path
+        name: document_id
+        description: 'The ID of the document.'
+        example: 01a146ef-004b-7183-9853-2eb39bbf9c17
+        required: true
+        schema:
+          type: string
+  '/api/v1/files/{id}':
+    get:
+      summary: 'Detalhar arquivo'
+      operationId: detalharArquivo
+      description: ''
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - Arquivos
+    delete:
+      summary: 'Remover arquivo do rascunho'
+      operationId: removerArquivoDoRascunho
+      description: 'Documento capturado responde 409. O arquivo físico é apagado depois do commit.'
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - Arquivos
+    parameters:
+      -
+        in: path
+        name: id
+        description: 'The ID of the file.'
+        example: a22b5e3d-8d53-414b-8df5-2f211df05311
+        required: true
+        schema:
+          type: string
+  '/api/v1/files/{file_id}/download':
+    get:
+      summary: 'Baixar arquivo'
+      operationId: baixarArquivo
+      description: 'Exige credencial maior ou igual ao sigilo do documento. Todo download é auditado.'
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - Arquivos
+    parameters:
+      -
+        in: path
+        name: file_id
+        description: 'The ID of the file.'
+        example: a22b5e3d-8d53-414b-8df5-2f211df05311
+        required: true
+        schema:
+          type: string
+  '/api/v1/files/{file_id}/reprocess':
+    post:
+      summary: 'Reprocessar arquivo'
+      operationId: reprocessarArquivo
+      description: 'Só para arquivos com processamento "falhou".'
+      parameters: []
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - Arquivos
+    parameters:
+      -
+        in: path
+        name: file_id
+        description: 'The ID of the file.'
+        example: a22b5e3d-8d53-414b-8df5-2f211df05311
+        required: true
+        schema:
+          type: string
+  /api/v1/audit-events:
+    get:
+      summary: 'Trilha geral'
+      operationId: trilhaGeral
+      description: 'Para admin e gestor. Eventos de documentos que o usuário não pode ver ficam de fora.'
+      parameters:
+        -
+          in: query
+          name: user_id
+          description: 'Autor do evento.'
+          example: 1
+          required: false
+          schema:
+            type: integer
+            description: 'Autor do evento.'
+            example: 1
+        -
+          in: query
+          name: action
+          description: 'Ação exata.'
+          example: document.updated
+          required: false
+          schema:
+            type: string
+            description: 'Ação exata.'
+            example: document.updated
+        -
+          in: query
+          name: auditable_type
+          description: 'Entidade: document, file, classification, retention_rule ou user.'
+          example: document
+          required: false
+          schema:
+            type: string
+            description: 'Entidade: document, file, classification, retention_rule ou user.'
+            example: document
+        -
+          in: query
+          name: auditable_id
+          description: 'Id da entidade.'
+          example: 9d2f...
+          required: false
+          schema:
+            type: string
+            description: 'Id da entidade.'
+            example: 9d2f...
+        -
+          in: query
+          name: from
+          description: 'Início do período (data ou data-hora).'
+          example: '2026-01-01'
+          required: false
+          schema:
+            type: string
+            description: 'Início do período (data ou data-hora).'
+            example: '2026-01-01'
+        -
+          in: query
+          name: to
+          description: 'Fim do período, exclusivo (data ou data-hora).'
+          example: '2026-12-31'
+          required: false
+          schema:
+            type: string
+            description: 'Fim do período, exclusivo (data ou data-hora).'
+            example: '2026-12-31'
+        -
+          in: query
+          name: per_page
+          description: 'Itens por página (até 100).'
+          example: 20
+          required: false
+          schema:
+            type: integer
+            description: 'Itens por página (até 100).'
+            example: 20
+      responses:
+        401:
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                example:
+                  message: 'Não autenticado.'
+                  errors: {  }
+                properties:
+                  message:
+                    type: string
+                    example: 'Não autenticado.'
+                  errors:
+                    type: object
+                    properties: {  }
+      tags:
+        - Auditoria
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: integer
+                  description: ''
+                  example: 16
+                  nullable: true
+                action:
+                  type: string
+                  description: 'O campo value não pode ter mais de 60 caracteres.'
+                  example: 'n'
+                  nullable: true
+                auditable_type:
+                  type: string
+                  description: 'O campo value não pode ter mais de 40 caracteres.'
+                  example: g
+                  nullable: true
+                auditable_id:
+                  type: string
+                  description: 'O campo value não pode ter mais de 36 caracteres.'
+                  example: z
+                  nullable: true
+                from:
+                  type: string
+                  description: ''
+                  example: architecto
+                  nullable: true
+                to:
+                  type: string
+                  description: ''
+                  example: architecto
+                  nullable: true
+                per_page:
+                  type: integer
+                  description: 'O campo value deve ser no mínimo 1. O campo value não pode ser maior que 100.'
+                  example: 22
+                  nullable: true
