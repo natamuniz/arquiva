@@ -69,9 +69,11 @@ docker compose up -d
 
 A primeira subida instala as dependências, roda as migrations, popula o banco com dados fictícios e gera a documentação. Acompanhe com `docker compose logs -f app`.
 
-- API: <http://localhost:8080/api/v1>
-- Documentação interativa: <http://localhost:8080/docs>
+- API: <http://localhost:8090/api/v1>
+- Documentação interativa: <http://localhost:8090/docs>
 - OpenAPI: [`docs/openapi.yaml`](docs/openapi.yaml)
+
+As portas padrão são 8090 (API) e 5433 (PostgreSQL), para não brigar com outros projetos. Se alguma estiver ocupada, troque na hora de subir: `ARQUIVA_PORT=9000 docker compose up -d`.
 
 Containers: `app` (php-fpm), `nginx`, `postgres`, `queue` (worker da fila) e `scheduler` (fixidez e limpeza diárias).
 
@@ -91,15 +93,15 @@ Senha de todos: `password`.
 
 ```bash
 # Login
-TOKEN=$(curl -s -X POST localhost:8080/api/v1/auth/login \
+TOKEN=$(curl -s -X POST localhost:8090/api/v1/auth/login \
   -H 'Content-Type: application/json' -H 'Accept: application/json' \
   -d '{"email":"consulta.adm@arquiva.test","password":"password"}' | jq -r .token)
 
 # Busca sem acento
-curl -s "localhost:8080/api/v1/documents?q=licitacao" -H "Authorization: Bearer $TOKEN" | jq '.data[].title'
+curl -s "localhost:8090/api/v1/documents?q=licitacao" -H "Authorization: Bearer $TOKEN" | jq '.data[].title'
 
 # O perfil consulta vê o documento sigiloso da própria unidade, mas não baixa o arquivo (403)
-curl -s "localhost:8080/api/v1/documents?secrecy=sigiloso" -H "Authorization: Bearer $TOKEN" | jq '.data[0].id'
+curl -s "localhost:8090/api/v1/documents?secrecy=sigiloso" -H "Authorization: Bearer $TOKEN" | jq '.data[0].id'
 ```
 
 ## Endpoints
