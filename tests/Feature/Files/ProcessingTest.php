@@ -49,7 +49,8 @@ it('marca como falhou o PDF corrompido', function (): void {
 });
 
 it('processa imagem PNG sem contar páginas', function (): void {
-    $file = uploadAndProcess($this, UploadedFile::fake()->image('foto.png', 20, 20));
+    // PNG 1x1 fixo: não depende da extensão GD, que a imagem Docker não tem.
+    $file = uploadAndProcess($this, UploadedFile::fake()->createWithContent('foto.png', (string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==')));
 
     expect($file->processing_status)->toBe(ProcessingStatus::Processado)
         ->and($file->page_count)->toBeNull()
