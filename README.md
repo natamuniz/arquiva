@@ -1,6 +1,6 @@
 # Arquiva
 
-[![CI](https://github.com/SEU-USUARIO/arquiva/actions/workflows/ci.yml/badge.svg)](https://github.com/SEU-USUARIO/arquiva/actions/workflows/ci.yml)
+[![CI](https://github.com/natamuniz/arquiva/actions/workflows/ci.yml/badge.svg)](https://github.com/natamuniz/arquiva/actions/workflows/ci.yml)
 
 API open-source de **gestão documental** em Laravel 13 e PostgreSQL 16. Modela regras de negócio reais de arquivologia: plano de classificação hierárquico, tabela de temporalidade versionada, controle de acesso por sigilo, trilha de auditoria imutável e verificação de integridade dos arquivos (fixidez).
 
@@ -62,7 +62,7 @@ erDiagram
 Requisito: Docker com Docker Compose.
 
 ```bash
-git clone https://github.com/SEU-USUARIO/arquiva.git
+git clone https://github.com/natamuniz/arquiva.git
 cd arquiva
 docker compose up -d
 ```
